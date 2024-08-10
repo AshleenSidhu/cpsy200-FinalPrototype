@@ -1,0 +1,555 @@
+﻿@page "/equipment"
+@using System.Collections.Generic
+@using System.IO
+@using System.Linq
+@using System.Threading.Tasks
+@using Microsoft.AspNetCore.Components
+@using Microsoft.AspNetCore.Components.Web
+@using MySql.Data.MySqlClient
+@using System.Data;
+@using VillageRentalSystem.Classes;
+
+<div class="container">
+    <header class="my-4">
+        <h1>@(showCategoriesModal ? "Categories" : "Equipment")</h1>
+        <div style="display: flex; justify-content: center; gap: 30px;">
+            @if (!showCategoriesModal)
+            {
+                <button class="btn btn-info" @onclick="ShowCategoriesModal">View All Categories</button>
+                <button class="btn btn-primary" @onclick="ShowAddEquipmentModal">Add New Equipment</button>
+            }
+            @if (showCategoriesModal)
+            {
+                <button class="btn btn-secondary" @onclick="ShowEquipmentTable">Back to Equipment</button>
+                <button class="btn btn-primary" @onclick="ShowAddCategoryModal">Add New Category</button>
+            }
+        </div>
+    </header>
+    @if (!showCategoriesModal)
+    {
+        <section class="my-4">
+            <h2>Recently added equipment</h2>
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th scope="col">ID</th>
+                        <th scope="col">Category ID</th>
+                        <th scope="col">Name</th>
+                        <th scope="col">Description</th>
+                        <th scope="col">Daily Rate</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in filteredEquipment)
+                    {
+                        <tr>
+                            <td>@item.EquipmentID</td>
+                            <td>@item.CategoryID</td>
+                            <td>@item.Name</td>
+                            <td>@item.Description</td>
+                            <td>@item.DailyRate.ToString("C")</td>
+                            <td>
+                                <button class="btn btn-danger" @onclick="() => DeleteEquipment(item.EquipmentID)">Delete</button>
+                                <button class="btn btn-secondary" @onclick="() => ShowEditEquipmentModal(item)">Edit</button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </section>
+    }
+    <!-- Categories Table Section -->
+    @if (showCategoriesModal)
+    {
+        <section class="my-4">
+            <h2>All Categories</h2>
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th scope="col">Category ID</th>
+                        <th scope="col">Category Name</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var category in categories)
+                    {
+                        <tr>
+                            <td>@category.CategoryID</td>
+                            <td>@category.Name</td>
+                            <td>
+                                <button class="btn btn-danger" @onclick="() => DeleteCategory(category.CategoryID)">Delete</button>
+                                <button class="btn btn-secondary" @onclick="() => ShowEditCategoryModal(category)">Edit</button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+
+            </table>
+        </section>
+    }
+    <!-- Add and Edit Equipment Modal -->
+    <div class="modal" tabindex="-1" role="dialog" style="display:@(showEquipmentModal ? "block" : "none")">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">@equipmentModalTitle</h5>
+                    <button type="button" class="close" @onclick="CloseEquipmentModal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="equipmentName">Name</label>
+                        <input type="text" class="form-control" id="equipmentName" @bind="currentEquipment.Name" />
+                    </div>
+                    @* <div class="form-group">
+                        <label for="equipmentCategoryID">Category ID</label>
+                        <input type="number" class="form-control" id="equipmentCategoryID" @bind="currentEquipment.CategoryID" />
+                    </div> *@
+                    <div class="form-group">
+                        <label for="equipmentCategoryID">Category</label>
+                        <select class="form-control" id="equipmentCategoryID" @bind="currentEquipment.CategoryID">
+                            <option value="">Select a category</option>
+                            @foreach (var category in categories)
+                            {
+                                <option value="@category.CategoryID">@category.Name</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="equipmentDescription">Description</label>
+                        <textarea class="form-control" id="equipmentDescription" @bind="currentEquipment.Description"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="equipmentDailyRate">Daily Rate</label>
+                        <input type="number" step="0.01" class="form-control" id="equipmentDailyRate" @bind="currentEquipment.DailyRate" />
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseEquipmentModal">Close</button>
+                    <button type="button" class="btn btn-primary" @onclick="SaveEquipment">Save changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Add/Edit Category Modal -->
+    <div class="modal" tabindex="-1" role="dialog" style="display:@(showCategoryModal ? "block" : "none")">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">@categoryModalTitle</h5>
+                    <button type="button" class="close" @onclick="CloseCategoryModal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    @* <div class="form-group">
+                        <label for="categoryID">Category ID</label>
+                        <input type="number" class="form-control" id="categoryID" @bind="currentCategory.CategoryID" />
+                    </div> *@
+                    <div class="form-group">
+                        <label for="categoryName">Category Name</label>
+                        <input type="text" class="form-control" id="categoryName" @bind="currentCategory.Name" />
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseCategoryModal">Close</button>
+                    <button type="button" class="btn btn-primary" @onclick="SaveCategory">Save changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Error Modal -->
+    <div class="modal" tabindex="-1" role="dialog" style="display:@(showErrorModal ? "block" : "none")">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Error</h5>
+                    <button type="button" class="close" @onclick="CloseErrorModal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <p>@errorMessage</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseErrorModal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<EquipmentItem> equipmentList = new List<EquipmentItem>();
+    private List<EquipmentItem> filteredEquipment = new List<EquipmentItem>();
+    private EquipmentItem currentEquipment = new EquipmentItem();
+    private bool showEquipmentModal = false;
+    private bool showCategoriesModal = false;
+    private bool showCategoryModal = false;
+    private string equipmentModalTitle = "";
+    private string categoryModalTitle = "";
+    private string searchTerm = "";
+    private string errorMessage = "";
+    private bool showErrorModal = false;
+
+    private List<Category> categories = new List<Category>();
+    private Category currentCategory = new Category();
+
+    private readonly string connectionString = "server=127.0.0.1;user=root;password=password;database=rentaldb";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadEquipment();
+        await LoadCategories();
+        FilterEquipment();
+    }
+
+    private async Task LoadEquipment()
+    {
+        equipmentList = await GetEquipmentAsync();
+        filteredEquipment = equipmentList;
+    }
+
+    private async Task LoadCategories()
+    {
+        categories = await GetCategoriesAsync();
+    }
+
+    private void FilterEquipment()
+    {
+        if (string.IsNullOrWhiteSpace(searchTerm))
+        {
+            filteredEquipment = equipmentList;
+        }
+        else
+        {
+            filteredEquipment = equipmentList.Where(e => e.Name.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                                                         e.Description.Contains(searchTerm, StringComparison.OrdinalIgnoreCase)).ToList();
+        }
+    }
+
+    private void ShowAddEquipmentModal()
+    {
+        currentEquipment = new EquipmentItem();
+        equipmentModalTitle = "Add New Equipment";
+        showEquipmentModal = true;
+    }
+
+    private void ShowEditEquipmentModal(EquipmentItem equipment)
+    {
+        currentEquipment = equipment;
+        equipmentModalTitle = "Edit Equipment";
+        showEquipmentModal = true;
+    }
+
+    private void CloseEquipmentModal()
+    {
+        showEquipmentModal = false;
+    }
+
+    private async Task SaveEquipment()
+    {
+        if (string.IsNullOrWhiteSpace(currentEquipment.Name) ||
+            string.IsNullOrWhiteSpace(currentEquipment.Description) ||
+            currentEquipment.CategoryID == 0 ||
+            currentEquipment.DailyRate <= 0)
+        {
+            errorMessage = "Please fill in all the fields.";
+            showErrorModal = true;
+            return;
+        }
+
+        try
+        {
+            if (currentEquipment.EquipmentID == 0) // Add new equipment
+            {
+                await AddEquipmentAsync(currentEquipment);
+            }
+            else // Update existing equipment
+            {
+                await UpdateEquipmentAsync(currentEquipment);
+            }
+
+            await LoadEquipment();
+            FilterEquipment();
+            CloseEquipmentModal();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+            showErrorModal = true;
+        }
+    }
+
+    private async Task DeleteEquipment(int equipmentId)
+    {
+        try
+        {
+            await DeleteEquipmentAsync(equipmentId);
+            await LoadEquipment();
+            FilterEquipment();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+            showErrorModal = true;
+        }
+    }
+
+    private async Task<List<EquipmentItem>> GetEquipmentAsync()
+    {
+        var equipment = new List<EquipmentItem>();
+
+        try
+        {
+            using var connection = new MySqlConnection(connectionString);
+            await connection.OpenAsync();
+
+            using var command = new MySqlCommand("SELECT equipment_id, category_id, name, description, daily_rate FROM Equipment", connection);
+            using var reader = await command.ExecuteReaderAsync();
+
+            while (await reader.ReadAsync())
+            {
+                equipment.Add(new EquipmentItem
+                    {
+                        EquipmentID = reader.GetInt32(0),
+                        CategoryID = reader.GetInt32(1),
+                        Name = reader.GetString(2),
+                        Description = reader.GetString(3),
+                        DailyRate = reader.GetDecimal(4),
+                    });
+            }
+        }
+        catch (MySqlException ex)
+        {
+            errorMessage = $"MySQL Error: {ex.Message}";
+            showErrorModal = true;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"General Error: {ex.Message}";
+            showErrorModal = true;
+        }
+
+        return equipment;
+    }
+
+    private async Task AddEquipmentAsync(EquipmentItem equipment)
+    {
+        using var connection = new MySqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        using var command = new MySqlCommand("INSERT INTO Equipment (category_id, name, description, daily_rate) VALUES (@CategoryID, @Name, @Description, @DailyRate)", connection);
+        command.Parameters.AddWithValue("@CategoryID", equipment.CategoryID);
+        command.Parameters.AddWithValue("@Name", equipment.Name);
+        command.Parameters.AddWithValue("@Description", equipment.Description);
+        command.Parameters.AddWithValue("@DailyRate", equipment.DailyRate);
+
+        await command.ExecuteNonQueryAsync();
+    }
+
+    private async Task UpdateEquipmentAsync(EquipmentItem equipment)
+    {
+        using var connection = new MySqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        using var command = new MySqlCommand("UPDATE Equipment SET category_id = @CategoryID, name = @Name, description = @Description, daily_rate = @DailyRate WHERE equipment_id = @EquipmentID", connection);
+        command.Parameters.AddWithValue("@EquipmentID", equipment.EquipmentID);
+        command.Parameters.AddWithValue("@CategoryID", equipment.CategoryID);
+        command.Parameters.AddWithValue("@Name", equipment.Name);
+        command.Parameters.AddWithValue("@Description", equipment.Description);
+        command.Parameters.AddWithValue("@DailyRate", equipment.DailyRate);
+
+        await command.ExecuteNonQueryAsync();
+    }
+
+    private async Task DeleteEquipmentAsync(int equipmentId)
+    {
+        using var connection = new MySqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        using var command = new MySqlCommand("DELETE FROM Equipment WHERE equipment_id = @EquipmentID", connection);
+        command.Parameters.AddWithValue("@EquipmentID", equipmentId);
+
+        await command.ExecuteNonQueryAsync();
+    }
+
+    private async Task<List<Category>> GetCategoriesAsync()
+    {
+        var categories = new List<Category>();
+
+        try
+        {
+            using var connection = new MySqlConnection(connectionString);
+            await connection.OpenAsync();
+
+            using var command = new MySqlCommand("SELECT category_id, name FROM Categories", connection);
+            using var reader = await command.ExecuteReaderAsync();
+
+            while (await reader.ReadAsync())
+            {
+                categories.Add(new Category
+                    {
+                        CategoryID = reader.GetInt32(0),
+                        Name = reader.GetString(1),
+                    });
+            }
+        }
+        catch (MySqlException ex)
+        {
+            errorMessage = "An error occurred while retrieving categories.";
+            showErrorModal = true;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "An error occurred while retrieving categories.";
+            showErrorModal = true;
+        }
+
+        return categories;
+    }
+
+    private async Task DeleteCategory(int categoryId)
+    {
+        try
+        {
+            await DeleteCategoryAsync(categoryId);
+            await LoadCategories();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+            showErrorModal = true;
+        }
+    }
+
+
+    private async Task DeleteCategoryAsync(int categoryId)
+    {
+        using var connection = new MySqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        // Delete related equipment items first
+        using (var deleteEquipmentCommand = new MySqlCommand("DELETE FROM Equipment WHERE category_id = @CategoryID", connection))
+        {
+            deleteEquipmentCommand.Parameters.AddWithValue("@CategoryID", categoryId);
+            await deleteEquipmentCommand.ExecuteNonQueryAsync();
+        }
+
+        // Then delete the category
+        using (var deleteCategoryCommand = new MySqlCommand("DELETE FROM Categories WHERE category_id = @CategoryID", connection))
+        {
+            deleteCategoryCommand.Parameters.AddWithValue("@CategoryID", categoryId);
+            await deleteCategoryCommand.ExecuteNonQueryAsync();
+        }
+    }
+
+
+    private async Task AddCategoryAsync(Category category)
+    {
+        using var connection = new MySqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        using var command = new MySqlCommand("INSERT INTO Categories (name) VALUES (@Name)", connection);
+        command.Parameters.AddWithValue("@Name", category.Name);
+
+        await command.ExecuteNonQueryAsync();
+    }
+
+    private async Task UpdateCategoryAsync(Category category)
+    {
+        using var connection = new MySqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        using var command = new MySqlCommand("UPDATE Categories SET name = @Name WHERE category_id = @CategoryID", connection);
+        command.Parameters.AddWithValue("@CategoryID", category.CategoryID);
+        command.Parameters.AddWithValue("@Name", category.Name);
+
+        await command.ExecuteNonQueryAsync();
+    }
+
+    private void ShowAddCategoryModal()
+    {
+        currentCategory = new Category();
+        categoryModalTitle = "Add New Category";
+        showCategoryModal = true;
+    }
+
+    private void ShowEditCategoryModal(Category category)
+    {
+        currentCategory = category;
+        categoryModalTitle = "Edit Category";
+        showCategoryModal = true;
+    }
+
+    private void CloseCategoryModal()
+    {
+        showCategoryModal = false;
+    }
+
+    private void ShowCategoriesModal()
+    {
+        showCategoriesModal = true;
+    }
+
+    private void ShowEquipmentTable()
+    {
+        showCategoriesModal = false;
+    }
+
+    private void CloseErrorModal()
+    {
+        showErrorModal = false;
+    }
+
+    public class EquipmentItem
+    {
+        public int EquipmentID { get; set; }
+        public int CategoryID { get; set; }
+        public string Name { get; set; }
+        public string Description { get; set; }
+        public decimal DailyRate { get; set; }
+    }
+
+    public class Category
+    {
+        public int CategoryID { get; set; }
+        public string Name { get; set; }
+    }
+
+    private async Task SaveCategory()
+{
+    if (string.IsNullOrEmpty(currentCategory.Name))
+    {
+        errorMessage = "Category name cannot be empty.";
+        showErrorModal = true;
+        return;
+    }
+
+    try
+    {
+        if (currentCategory.CategoryID == 0) // Add new category
+        {
+            await AddCategoryAsync(currentCategory);
+        }
+        else // Update existing category
+        {
+            await UpdateCategoryAsync(currentCategory);
+        }
+
+        await LoadCategories();
+        CloseCategoryModal();
+    }
+    catch (Exception ex)
+    {
+        errorMessage = ex.Message;
+        showErrorModal = true;
+    }
+}
+
+
+}

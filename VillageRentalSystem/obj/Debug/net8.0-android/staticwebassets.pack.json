@@ -1,0 +1,61 @@
+{
+  "Files": [
+    {
+      "Id": "C:\\Users\\ssidh\\cpsy200-prototype\\cpsy200\\VillageRentalSystem\\obj\\Debug\\net8.0-android\\scopedcss\\bundle\\VillageRentalSystem.styles.css",
+      "PackagePath": "staticwebassets\\VillageRentalSystem.styles.css"
+    },
+    {
+      "Id": "C:\\Users\\ssidh\\cpsy200-prototype\\cpsy200\\VillageRentalSystem\\wwwroot\\compressor.png",
+      "PackagePath": "staticwebassets\\compressor.png"
+    },
+    {
+      "Id": "C:\\Users\\ssidh\\cpsy200-prototype\\cpsy200\\VillageRentalSystem\\wwwroot\\css\\app.css",
+      "PackagePath": "staticwebassets\\css\\app.css"
+    },
+    {
+      "Id": "C:\\Users\\ssidh\\cpsy200-prototype\\cpsy200\\VillageRentalSystem\\wwwroot\\css\\bootstrap\\bootstrap.min.css",
+      "PackagePath": "staticwebassets\\css\\bootstrap\\bootstrap.min.css"
+    },
+    {
+      "Id": "C:\\Users\\ssidh\\cpsy200-prototype\\cpsy200\\VillageRentalSystem\\wwwroot\\css\\bootstrap\\bootstrap.min.css.map",
+      "PackagePath": "staticwebassets\\css\\bootstrap\\bootstrap.min.css.map"
+    },
+    {
+      "Id": "C:\\Users\\ssidh\\cpsy200-prototype\\cpsy200\\VillageRentalSystem\\wwwroot\\favicon.png",
+      "PackagePath": "staticwebassets\\favicon.png"
+    },
+    {
+      "Id": "C:\\Users\\ssidh\\cpsy200-prototype\\cpsy200\\VillageRentalSystem\\wwwroot\\index.html",
+      "PackagePath": "staticwebassets\\index.html"
+    },
+    {
+      "Id": "C:\\Users\\ssidh\\cpsy200-prototype\\cpsy200\\VillageRentalSystem\\wwwroot\\power_tools.png",
+      "PackagePath": "staticwebassets\\power_tools.png"
+    },
+    {
+      "Id": "C:\\Users\\ssidh\\cpsy200-prototype\\cpsy200\\VillageRentalSystem\\wwwroot\\tools.png",
+      "PackagePath": "staticwebassets\\tools.png"
+    },
+    {
+      "Id": "C:\\Users\\ssidh\\cpsy200-prototype\\cpsy200\\VillageRentalSystem\\wwwroot\\yard_equipment.png",
+      "PackagePath": "staticwebassets\\yard_equipment.png"
+    },
+    {
+      "Id": "obj\\Debug\\net8.0-android\\staticwebassets\\msbuild.VillageRentalSystem.Microsoft.AspNetCore.StaticWebAssets.props",
+      "PackagePath": "build\\Microsoft.AspNetCore.StaticWebAssets.props"
+    },
+    {
+      "Id": "obj\\Debug\\net8.0-android\\staticwebassets\\msbuild.build.VillageRentalSystem.props",
+      "PackagePath": "build\\VillageRentalSystem.props"
+    },
+    {
+      "Id": "obj\\Debug\\net8.0-android\\staticwebassets\\msbuild.buildMultiTargeting.VillageRentalSystem.props",
+      "PackagePath": "buildMultiTargeting\\VillageRentalSystem.props"
+    },
+    {
+      "Id": "obj\\Debug\\net8.0-android\\staticwebassets\\msbuild.buildTransitive.VillageRentalSystem.props",
+      "PackagePath": "buildTransitive\\VillageRentalSystem.props"
+    }
+  ],
+  "ElementsToRemove": []
+}
