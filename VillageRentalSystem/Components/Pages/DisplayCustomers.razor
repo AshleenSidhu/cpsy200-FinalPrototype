@@ -1,0 +1,483 @@
+﻿@page "/displaycustomers"
+
+@using System.Collections.Generic
+@using System.Linq
+@using MySql.Data.MySqlClient
+@using System.Data
+@using System.Threading.Tasks
+@using Microsoft.AspNetCore.Components
+@using Microsoft.AspNetCore.Components.Web
+@using VillageRentalSystem.Classes;
+
+<div class="container">
+    <header class="my-4">
+        <h1>Customers</h1>
+        <button class="btn btn-primary" @onclick="ShowAddCustomerModal">Add New Customer</button>
+    </header>
+
+    <section class="my-4">
+        <h2>Recently added customers</h2>
+        <input type="search" class="form-control" placeholder="Search Customers" @bind="searchTerm" @oninput="FilterCustomers" />
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th scope="col">ID</th>
+                    <th scope="col">Name</th>
+                    <th scope="col">Email</th>
+                    <th scope="col">Phone</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var customer in filteredCustomers)
+                {
+                    <tr>
+                        <td>@customer.CustomerId</td>
+                        <td>@customer.LastName @customer.FirstName</td>
+                        <td>@customer.Email</td>
+                        <td>@customer.Phone</td>
+                        <td>
+                            <button class="btn btn-danger" @onclick="() => DeleteCustomer(customer.CustomerId)">Delete</button>
+                            <button class="btn btn-secondary" @onclick="() => ShowEditCustomerModal(customer)">Edit</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </section>
+
+    <!-- Add/Edit Customer Modal -->
+    <div class="modal" tabindex="-1" role="dialog" style="display:@(showModal ? "block" : "none")">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">@modalTitle</h5>
+                    <button type="button" class="close" @onclick="CloseModal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="customerLastName">Last Name</label>
+                        <input type="text" class="form-control" id="customerLastName" @bind="currentCustomer.LastName" />
+                    </div>
+                    <div class="form-group">
+                        <label for="customerFirstName">First Name</label>
+                        <input type="text" class="form-control" id="customerFirstName" @bind="currentCustomer.FirstName" />
+                    </div>
+                    <div class="form-group">
+                        <label for="customerPhone">Phone</label>
+                        <input type="text" class="form-control" id="customerPhone" @bind="currentCustomer.Phone" />
+                    </div>
+                    <div class="form-group">
+                        <label for="customerEmail">Email</label>
+                        <input type="email" class="form-control" id="customerEmail" @bind="currentCustomer.Email" />
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseModal">Close</button>
+                    <button type="button" class="btn btn-primary" @onclick="SaveCustomer">Save changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Error Modal -->
+    <div class="modal" tabindex="-1" role="dialog" style="display:@(showErrorModal ? "block" : "none")">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Error</h5>
+                    <button type="button" class="close" @onclick="CloseErrorModal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <p>@errorMessage</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseErrorModal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<Customer> customerList = new List<Customer>();
+    private List<Customer> filteredCustomers = new List<Customer>();
+    private Customer currentCustomer = new Customer();
+    private bool showModal = false;
+    private bool showErrorModal = false;
+    private string modalTitle = "";
+    private string searchTerm = "";
+    private string errorMessage = "";
+
+    private readonly string connectionString = "server=127.0.0.1;user=root;password=password;database=rentaldb";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCustomers();
+        FilterCustomers();
+    }
+
+    private async Task LoadCustomers()
+    {
+        customerList = await GetCustomersAsync();
+        filteredCustomers = customerList;
+    }
+
+    private void FilterCustomers()
+    {
+        if (string.IsNullOrWhiteSpace(searchTerm))
+        {
+            filteredCustomers = customerList;
+        }
+        else
+        {
+            filteredCustomers = customerList.Where(c => c.LastName.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                                                     c.FirstName.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                                                     c.Email.Contains(searchTerm, StringComparison.OrdinalIgnoreCase)).ToList();
+        }
+    }
+
+    private void ShowAddCustomerModal()
+    {
+        currentCustomer = new Customer();
+        modalTitle = "Add New Customer";
+        showModal = true;
+    }
+
+    private void ShowEditCustomerModal(Customer customer)
+    {
+        currentCustomer = customer;
+        modalTitle = "Edit Customer";
+        showModal = true;
+    }
+
+    private void CloseModal()
+    {
+        showModal = false;
+    }
+
+    private void CloseErrorModal()
+    {
+        showErrorModal = false;
+    }
+
+    private async Task SaveCustomer()
+    {
+        if (string.IsNullOrWhiteSpace(currentCustomer.LastName) ||
+            string.IsNullOrWhiteSpace(currentCustomer.FirstName) ||
+            string.IsNullOrWhiteSpace(currentCustomer.Phone) ||
+            string.IsNullOrWhiteSpace(currentCustomer.Email))
+        {
+            errorMessage = "Please fill in all the fields.";
+            showErrorModal = true;
+            return;
+        }
+
+        try
+        {
+            if (currentCustomer.CustomerId == 0)
+            {
+                await AddCustomerAsync(currentCustomer);
+            }
+            else
+            {
+                await UpdateCustomerAsync(currentCustomer);
+            }
+
+            await LoadCustomers();
+            FilterCustomers();
+            CloseModal();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+            showErrorModal = true;
+        }
+    }
+
+    private async Task DeleteCustomer(int customerId)
+    {
+        try
+        {
+            await DeleteCustomerAsync(customerId);
+            await LoadCustomers();
+            FilterCustomers();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+            showErrorModal = true;
+        }
+    }
+
+    private async Task<List<Customer>> GetCustomersAsync()
+    {
+        var customers = new List<Customer>();
+
+        try
+        {
+            using var connection = new MySqlConnection(connectionString);
+            await connection.OpenAsync();
+
+            using var command = new MySqlCommand("SELECT customer_id, last_name, first_name, phone, email FROM Customers", connection);
+            using var reader = await command.ExecuteReaderAsync();
+
+            while (await reader.ReadAsync())
+            {
+                customers.Add(new Customer
+                    {
+                        CustomerId = reader.GetInt32(0),
+                        LastName = reader.GetString(1),
+                        FirstName = reader.GetString(2),
+                        Phone = reader.GetString(3),
+                        Email = reader.GetString(4),
+                    });
+            }
+        }
+        catch (MySqlException ex)
+        {
+            errorMessage = $"MySQL Error: {ex.Message}";
+            showErrorModal = true;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"General Error: {ex.Message}";
+            showErrorModal = true;
+        }
+
+        return customers;
+    }
+
+    private async Task AddCustomerAsync(Customer customer)
+    {
+        using var connection = new MySqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        using var command = new MySqlCommand("INSERT INTO Customers (last_name, first_name, phone, email) VALUES (@LastName, @FirstName, @Phone, @Email)", connection);
+        command.Parameters.AddWithValue("@LastName", customer.LastName);
+        command.Parameters.AddWithValue("@FirstName", customer.FirstName);
+        command.Parameters.AddWithValue("@Phone", customer.Phone);
+        command.Parameters.AddWithValue("@Email", customer.Email);
+
+        await command.ExecuteNonQueryAsync();
+    }
+
+    private async Task UpdateCustomerAsync(Customer customer)
+    {
+        using var connection = new MySqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        using var command = new MySqlCommand("UPDATE Customers SET last_name = @LastName, first_name = @FirstName, phone = @Phone, email = @Email WHERE customer_id = @CustomerId", connection);
+        command.Parameters.AddWithValue("@CustomerId", customer.CustomerId);
+        command.Parameters.AddWithValue("@LastName", customer.LastName);
+        command.Parameters.AddWithValue("@FirstName", customer.FirstName);
+        command.Parameters.AddWithValue("@Phone", customer.Phone);
+        command.Parameters.AddWithValue("@Email", customer.Email);
+
+        await command.ExecuteNonQueryAsync();
+    }
+
+    private async Task DeleteCustomerAsync(int customerId)
+    {
+        using var connection = new MySqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        using var command = new MySqlCommand("DELETE FROM Customers WHERE customer_id = @CustomerId", connection);
+        command.Parameters.AddWithValue("@CustomerId", customerId);
+
+        await command.ExecuteNonQueryAsync();
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+@* Trash (Old code with csv file)
+            
+        
+        
+        
+        
+        <!-- Add/Edit Customer Modal -->
+    <div class="modal" tabindex="-1" role="dialog" style="display:@(showModal ? "block" : "none")">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">@modalTitle</h5>
+                    <button type="button" class="close" @onclick="CloseModal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="customerLastName">Last Name</label>
+                        <input type="text" class="form-control" id="customerLastName" @bind="currentCustomer.LastName" />
+                    </div>
+                    <div class="form-group">
+                        <label for="customerFirstName">First Name</label>
+                        <input type="text" class="form-control" id="customerFirstName" @bind="currentCustomer.FirstName" />
+                    </div>
+                    <div class="form-group">
+                        <label for="customerPhone">Phone</label>
+                        <input type="text" class="form-control" id="customerPhone" @bind="currentCustomer.Phone" />
+                    </div>
+                    <div class="form-group">
+                        <label for="customerEmail">Email</label>
+                        <input type="email" class="form-control" id="customerEmail" @bind="currentCustomer.Email" />
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseModal">Close</button>
+                    <button type="button" class="btn btn-primary" @onclick="SaveCustomer">Save changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Error Modal -->
+    <div class="modal" tabindex="-1" role="dialog" style="display:@(showErrorModal ? "block" : "none")">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Error</h5>
+                    <button type="button" class="close" @onclick="CloseErrorModal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <p>Please fill in all the fields.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseErrorModal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<Customer> customers = new List<Customer>();
+    private List<Customer> filteredCustomers = new List<Customer>();
+    private Customer currentCustomer = new Customer();
+    private bool showModal = false;
+    private bool showErrorModal = false;
+    private string modalTitle = "";
+    private string searchTerm = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCustomers();
+        FilterCustomers();
+    }
+
+    private async Task LoadCustomers()
+    {
+        var csvFile = "customers.csv";
+        using var customerFile = await FileSystem.OpenAppPackageFileAsync(csvFile);
+        using var reader = new StreamReader(customerFile);
+        var lines = await reader.ReadToEndAsync();
+        foreach (var line in lines.Split('\n').Skip(1))
+        {
+            if (string.IsNullOrWhiteSpace(line)) continue;
+            var values = line.Split(',');
+            customers.Add(new Customer
+            {
+                customerId = int.Parse(values[0]),
+                LastName = values[1],
+                FirstName = values[2],
+                Phone = values[3],
+                Email = values[4]
+            });
+        }
+        filteredCustomers = customers;
+    }
+
+    private void FilterCustomers()
+    {
+        if (string.IsNullOrWhiteSpace(searchTerm))
+        {
+            filteredCustomers = customers;
+        }
+        else
+        {
+            filteredCustomers = customers.Where(c => c.LastName.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                                                     c.FirstName.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                                                     c.Email.Contains(searchTerm, StringComparison.OrdinalIgnoreCase)).ToList();
+        }
+    }
+
+    private void ShowAddCustomerModal()
+    {
+        currentCustomer = new Customer();
+        modalTitle = "Add New Customer";
+        showModal = true;
+    }
+
+    private void ShowEditCustomerModal(Customer customer)
+    {
+        currentCustomer = customer;
+        modalTitle = "Edit Customer";
+        showModal = true;
+    }
+
+    private void CloseModal()
+    {
+        showModal = false;
+    }
+
+    private void CloseErrorModal()
+    {
+        showErrorModal = false;
+    }
+
+    private async Task SaveCustomer()
+    {
+        if (string.IsNullOrWhiteSpace(currentCustomer.LastName) ||
+            string.IsNullOrWhiteSpace(currentCustomer.FirstName) ||
+            string.IsNullOrWhiteSpace(currentCustomer.Phone) ||
+            string.IsNullOrWhiteSpace(currentCustomer.Email))
+        {
+            showErrorModal = true;
+            return;
+        }
+
+        if (currentCustomer.customerId == 0)
+        {
+            currentCustomer.customerId = customers.Max(c => c.customerId) + 1;
+            customers.Add(currentCustomer);
+        }
+
+        await SaveCustomersToFile();
+        FilterCustomers();
+        CloseModal();
+    }
+
+    private async Task SaveCustomersToFile()
+    {
+        var csvFile = "customers.csv";
+        var lines = new List<string> { "Id,LastName,FirstName,Phone,Email" };
+        lines.AddRange(customers.Select(c => $"{c.customerId},{c.LastName},{c.FirstName},{c.Phone},{c.Email}"));
+        await File.WriteAllLinesAsync(csvFile, lines);
+    }
+
+    private async Task DeleteCustomer(Customer customer)
+    {
+        customers.Remove(customer);
+        await SaveCustomersToFile();
+        FilterCustomers();
+    } *@
+
+    
